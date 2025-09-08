@@ -6,8 +6,8 @@ function Compare-Paths {
         [Parameter(Mandatory = $true)]
         [string]$InternalPath,
 
-        [ValidateSet("Classic", "Table")]
-        [string]$ViewMode = "Classic"
+        [ValidateSet("ExternalOnly", "InternalOnly", "Full", "DifferencesOnly", "Space")]
+        [string]$DisplayMode = "DifferencesOnly"
     )
 
     if (-Not (Test-Path -Path $ExternalPath)) {
@@ -16,67 +16,84 @@ function Compare-Paths {
     }
 
     if (-Not (Test-Path -Path $InternalPath)) {
-        Write-Error "Local path '$InternalPath' does not exist."
+        Write-Error "Internal path '$InternalPath' does not exist."
         return
     }
 
     $externalItems = Get-ChildItem -Path $ExternalPath -Recurse -Force | Where-Object { -not $_.PSIsContainer }
     $internalItems = Get-ChildItem -Path $InternalPath -Recurse -Force | Where-Object { -not $_.PSIsContainer }
 
-    # Create hashtables with relative paths as keys
     $externalMap = @{}
     foreach ($item in $externalItems) {
         $relative = $item.FullName.Substring($ExternalPath.Length).TrimStart('\')
-        $externalMap[$relative] = $item.FullName
+        $externalMap[$relative] = $item
     }
 
     $internalMap = @{}
     foreach ($item in $internalItems) {
         $relative = $item.FullName.Substring($InternalPath.Length).TrimStart('\')
-        $internalMap[$relative] = $item.FullName
+        $internalMap[$relative] = $item
     }
 
     $allKeys = $externalMap.Keys + $internalMap.Keys | Sort-Object -Unique
 
-    if ($ViewMode -eq "Classic") {
-        foreach ($key in $allKeys) {
-            $inExternal = $externalMap.ContainsKey($key)
-            $inInternal = $internalMap.ContainsKey($key)
-
-            if ($inExternal -and $inInternal) {
-                Write-Host "Both: $key" -ForegroundColor Green
-            } elseif ($inExternal) {
-                Write-Host "External only: $key" -ForegroundColor Yellow
-            } elseif ($inInternal) {
-                Write-Host "Internal only: $key" -ForegroundColor Cyan
+    switch ($DisplayMode) {
+        "ExternalOnly" {
+            foreach ($key in $allKeys) {
+                if ($externalMap.ContainsKey($key) -and -not $internalMap.ContainsKey($key)) {
+                    [PSCustomObject]@{
+                        External = $externalMap[$key].FullName
+                        Internal = $null
+                    }
+                }
             }
         }
-    }
-    elseif ($ViewMode -eq "Table") {
-        $table = @()
-
-        foreach ($key in $allKeys) {
-            $externalPath = $externalMap[$key]
-            $internalPath = $internalMap[$key]
-
-            $shortExternal = if ($externalPath -and $externalPath.Length -gt 60) {
-                "..." + $externalPath.Substring($externalPath.Length - 57)
-            } else {
-                $externalPath
-            }
-
-            $shortInternal = if ($internalPath -and $internalPath.Length -gt 60) {
-                "..." + $internalPath.Substring($internalPath.Length - 57)
-            } else {
-                $internalPath
-            }
-
-            $table += [PSCustomObject]@{
-                External = $shortExternal
-                Internal = $shortInternal
+        "InternalOnly" {
+            foreach ($key in $allKeys) {
+                if ($internalMap.ContainsKey($key) -and -not $externalMap.ContainsKey($key)) {
+                    [PSCustomObject]@{
+                        External = $null
+                        Internal = $internalMap[$key].FullName
+                    }
+                }
             }
         }
+        "Full" {
+            foreach ($key in $allKeys) {
+                [PSCustomObject]@{
+                    External = if ($externalMap.ContainsKey($key)) { $externalMap[$key].FullName } else { $null }
+                    Internal = if ($internalMap.ContainsKey($key)) { $internalMap[$key].FullName } else { $null }
+                }
+            }
+        }
+        "DifferencesOnly" {
+            foreach ($key in $allKeys) {
+                $inExternal = $externalMap.ContainsKey($key)
+                $inInternal = $internalMap.ContainsKey($key)
 
-        $table | Format-Table -AutoSize
+                if ($inExternal -xor $inInternal) {
+                    [PSCustomObject]@{
+                        External = if ($inExternal) { $externalMap[$key].FullName } else { $null }
+                        Internal = if ($inInternal) { $internalMap[$key].FullName } else { $null }
+                    }
+                }
+            }
+        }
+        "Space" {
+            $externalTotal = ($externalItems | Measure-Object -Property Length -Sum).Sum
+            $internalTotal = ($internalItems | Measure-Object -Property Length -Sum).Sum
+
+            $externalOnlySize = ($allKeys | Where-Object { $externalMap.ContainsKey($_) -and -not $internalMap.ContainsKey($_) } |
+                ForEach-Object { $externalMap[$_].Length }) | Measure-Object -Sum
+            $internalOnlySize = ($allKeys | Where-Object { $internalMap.ContainsKey($_) -and -not $externalMap.ContainsKey($_) } |
+                ForEach-Object { $internalMap[$_].Length }) | Measure-Object -Sum
+
+            [PSCustomObject]@{
+                ExternalTotal  = "{0:N2} GB" -f ($externalTotal / 1GB)
+                InternalTotal  = "{0:N2} GB" -f ($internalTotal / 1GB)
+                ExternalOnly   = "{0:N2} GB" -f ($externalOnlySize.Sum / 1GB)
+                InternalOnly   = "{0:N2} GB" -f ($internalOnlySize.Sum / 1GB)
+            }
+        }
     }
 }
