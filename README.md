@@ -40,6 +40,7 @@ The module is designed to simplify file management and ensure consistency betwee
 2. Import the module in PowerShell:
 ```powershell 
 Import-Module .\onedrivesync.psm1
+```
 
 ## Usage
 Synchronize Paths
@@ -48,4 +49,4 @@ Sync-Paths -ExternalPath "C:\Users\Example\OneDrive" `
            -InternalPath "D:\LocalBackup" `
            -Direction Both `
            -SafeMode
-
+```
