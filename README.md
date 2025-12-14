@@ -38,7 +38,8 @@ The module is designed to simplify file management and ensure consistency betwee
 ## Installation
 1. Clone or download this repository.
 2. Import the module in PowerShell:
-   ```powershell Import-Module .\onedrivesync.psm1
+   ```powershell 
+   Import-Module .\onedrivesync.psm1
 
 ## Usage
 Synchronize Paths
