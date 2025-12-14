@@ -43,10 +43,45 @@ Import-Module .\onedrivesync.psm1
 ```
 
 ## Usage
-Synchronize Paths
+### Synchronize Paths
 ```
-Sync-Paths -ExternalPath "C:\Users\Example\OneDrive" `
-           -InternalPath "D:\LocalBackup" `
+Sync-Paths -ExternalPath "C:\Users\Example\OneDrive\AnyFolder" `
+           -InternalPath "D:\LocalBackup\AnyFolder" `
            -Direction Both `
            -SafeMode
 ```
+Parameters:
+- ExternalPath – Path to OneDrive/external directory.
+- InternalPath – Path to local/internal directory.
+- Direction – Both, ExternalToInternal, or InternalToExternal.
+- SafeMode – Prevents overwriting conflicting files (default: enabled).
+
+### Compare Paths
+```
+Compare-Paths -ExternalPath "C:\Users\Example\OneDrive" `
+              -InternalPath "D:\LocalBackup" `
+              -DisplayMode DifferencesOnly
+```
+Parameters:
+- ExternalPath – Path to OneDrive/external directory.
+- InternalPath – Path to local/internal directory.
+- DisplayMode – ExternalOnly, InternalOnly, Full, DifferencesOnly, Space.
+
+## Example Scenarios
+- Backup OneDrive (all subfolders) to local storage:
+Sync-Paths -ExternalPath "C:\Users\Example\OneDrive" -InternalPath "D:\Backup" -Direction ExternalToInternal
+- Backup local folder to OneDrive for example images folder:
+Sync-Paths -ExternalPath "C:\Users\Example\OneDrive\Images" -InternalPath "D:\Backup\Images" -Direction ExternalToInternal
+- Check which files exist only in OneDrive:
+Compare-Paths -ExternalPath "C:\Users\Example\OneDrive" -InternalPath "D:\Backup" -DisplayMode ExternalOnly
+- Analyze storage usage differences:
+Compare-Paths -ExternalPath "C:\Users\Example\OneDrive" -InternalPath "D:\Backup" -DisplayMode Space
+
+## Notes
+- The module uses attrib.exe to set OneDrive files as online-only.
+- SafeMode is recommended when synchronizing to avoid accidental overwrites.
+- Progress bars and warnings are displayed during operations for transparency.
+  
+## License
+This project is released under the MIT License.
+Feel free to use, modify, and distribute with attribution.
